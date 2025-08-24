@@ -28,7 +28,7 @@ public class Product {
 		this.price = newPrice;
 	}
 	
-	// Getters
+	// Getters and setters
 	public String getCode() {
 		return code;
 	}
@@ -43,5 +43,17 @@ public class Product {
 
 	public float getPrice() {
 		return price;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public void setPrice(float price) {
+		this.price = price;
 	}
 }

@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
  * DTO de entrada (request) desde la API REST.
  */
 public class ProductRequest {
+	
 	@NotBlank(message = "El codigo del producto no puede estar vacío")
 	private String code;
 	

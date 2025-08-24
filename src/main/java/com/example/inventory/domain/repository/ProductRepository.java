@@ -1,5 +1,6 @@
 package com.example.inventory.domain.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import com.example.inventory.domain.model.Product;
@@ -9,6 +10,12 @@ import com.example.inventory.domain.model.Product;
  * Define qué necesita el dominio para trabajar con productos.
  */
 public interface ProductRepository{
+	
 	Optional<Product> findByCode(String code);
+	
 	void save(Product product);
+	
+	void delete(Product product);
+	
+	List<Product> findAll();
 }

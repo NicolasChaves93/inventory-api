@@ -1,10 +1,14 @@
 package com.example.inventory.interface_.v1;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -47,5 +51,23 @@ public class ProductController {
 		return ResponseEntity.status(HttpStatus.CREATED).build();
 	}
 	
-
+	@Operation(summary = "Actualizar un producto", description = "Actualiza los datos de un producto existente.")
+	@PutMapping("/{code}")
+	public ResponseEntity<Void> update(@PathVariable String code, @Valid @RequestBody ProductRequest request) {
+		productService.updateProduct(code, request);
+		return ResponseEntity.noContent().build();
+	}
+	
+	@Operation(summary = "Eliminar un producto", description = "Elimina un producto del inventario.")
+	@DeleteMapping("/{code}")
+	public ResponseEntity<Void> delete(@PathVariable String code) {
+		productService.deleteProduct(code);
+		return ResponseEntity.noContent().build();
+	}
+	
+	@Operation(summary = "Listar todos los productos", description = "Devuelve una lista de todos los productos en el inventario.")
+	@GetMapping
+	public ResponseEntity<List<ProductResponse>> listAll() {
+		return ResponseEntity.ok(productService.findAll());
+	}
 }

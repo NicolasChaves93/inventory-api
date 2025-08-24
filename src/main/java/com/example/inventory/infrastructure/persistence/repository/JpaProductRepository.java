@@ -1,12 +1,16 @@
 package com.example.inventory.infrastructure.persistence.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Repository;
 
+import com.example.inventory.application.mapper.ProductMapper;
 import com.example.inventory.domain.model.Product;
 import com.example.inventory.domain.repository.ProductRepository;
 import com.example.inventory.infrastructure.persistence.entity.ProductEntity;
+
+import jakarta.transaction.Transactional;
 
 /**
  * Adaptador: implementa el contrato de dominio usando JPA.
@@ -23,12 +27,14 @@ public class JpaProductRepository implements ProductRepository {
 	@Override
 	public Optional<Product> findByCode(String code) {
 		return jpaRepository.findByCode(code)
-				.map(entity -> new Product(entity.getCode(), entity.getName(), entity.getDescription(), entity.getPrice()));
+				.map(ProductMapper::toDomain);
 	}
 	
 	@Override
 	public void save(Product product) {
-		var entity = new ProductEntity();
+		ProductEntity entity = jpaRepository.findByCode(product.getCode())
+	        .orElse(new ProductEntity());
+		
 		entity.setCode(product.getCode());
 		entity.setName(product.getName());
 		entity.setDescription(product.getDescription());
@@ -36,5 +42,18 @@ public class JpaProductRepository implements ProductRepository {
 		jpaRepository.save(entity);
 	}
 	
+	
+	@Override
+	@Transactional
+	public void delete(Product product) {
+		jpaRepository.deleteByCode(product.getCode());
+	}
+	
+	@Override
+	public List<Product> findAll() {
+		return jpaRepository.findAll().stream()
+				.map(ProductMapper::toDomain)
+				.toList();
+	}
 
 }
