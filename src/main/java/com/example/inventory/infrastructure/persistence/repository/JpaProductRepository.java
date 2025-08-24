@@ -23,7 +23,7 @@ public class JpaProductRepository implements ProductRepository {
 	@Override
 	public Optional<Product> findByCode(String code) {
 		return jpaRepository.findByCode(code)
-				.map(entity -> new Product(entity.getCode(), entity.getName(), entity.getQuantity()));
+				.map(entity -> new Product(entity.getCode(), entity.getName(), entity.getDescription(), entity.getPrice()));
 	}
 	
 	@Override
@@ -31,7 +31,8 @@ public class JpaProductRepository implements ProductRepository {
 		var entity = new ProductEntity();
 		entity.setCode(product.getCode());
 		entity.setName(product.getName());
-		entity.setQuantity(product.getQuantity());
+		entity.setDescription(product.getDescription());
+		entity.setPrice(product.getPrice());
 		jpaRepository.save(entity);
 	}
 	

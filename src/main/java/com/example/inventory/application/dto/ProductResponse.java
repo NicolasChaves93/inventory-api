@@ -6,12 +6,14 @@ package com.example.inventory.application.dto;
 public class ProductResponse {
 	private String code;
 	private String name;
-	private Integer quantity;
+	private String description;
+	private float price;
 	
-	public ProductResponse(String code, String name, Integer quantity) {
+	public ProductResponse(String code, String name, String description, float price) {
 		this.code = code;
 		this.name = name;
-		this.quantity = quantity;
+		this.description = description;
+		this.price = price;
 	}
 	
 	// Getters
@@ -23,7 +25,11 @@ public class ProductResponse {
 		return name;
 	}
 
-	public Integer getQuantity() {
-		return quantity;
+	public String getDescription() {
+		return description;
+	}
+
+	public float getPrice() {
+		return price;
 	}
 }

@@ -6,25 +6,27 @@ package com.example.inventory.domain.model;
 public class Product {
 	private final String code;
 	private String name;
-	private int quantity;
+	private String description;
+	private float price;
 	
-	public Product(String code, String name, int quantity) {
+	public Product(String code, String name, String description, float price) {
 		if ( code == null || code.isBlank()) {
 			throw new IllegalArgumentException("El código es obligatorio");
 		}
+		
 		this.code = code;
 		this.name = name;
-		this.quantity = quantity;
+		this.description = description;
+		this.price = price;
 	}
 	
 	// Reglas de negocio
-	public void increaseStock(int amount) {
-		if (amount <= 0) {
-			throw new IllegalArgumentException("Cantidad invalida");
+	public void updatePrice(float newPrice) {
+		if (newPrice < 0) {
+			throw new IllegalArgumentException("El precio no puede ser negativo");
 		}
-		this.quantity += amount;
+		this.price = newPrice;
 	}
-
 	
 	// Getters
 	public String getCode() {
@@ -35,8 +37,11 @@ public class Product {
 		return name;
 	}
 
-	public int getQuantity() {
-		return quantity;
+	public String getDescription() {
+		return description;
 	}
-	
+
+	public float getPrice() {
+		return price;
+	}
 }

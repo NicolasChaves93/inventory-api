@@ -13,8 +13,10 @@ public class ProductRequest {
 	@NotBlank(message = "El nombre del producto no puede estar vacío")
 	private String name;
 	
-	@NotNull(message = "La cantidad del producto no puede estar vacía")
-	private Integer quantity;
+	private String description;
+	
+	@NotNull(message = "El precio del producto es obligatorio")
+	private float price;
 
 	// Getters and Setters
 	public String getCode() {
@@ -33,11 +35,19 @@ public class ProductRequest {
 		this.name = name;
 	}
 
-	public Integer getQuantity() {
-		return quantity;
+	public String getDescription() {
+		return description;
 	}
 
-	public void setQuantity(Integer quantity) {
-		this.quantity = quantity;
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public float getPrice() {
+		return price;
+	}
+
+	public void setPrice(float price) {
+		this.price = price;
 	}
 }

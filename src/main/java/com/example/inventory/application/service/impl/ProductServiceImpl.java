@@ -22,13 +22,13 @@ public class ProductServiceImpl implements ProductService {
 	@Override
 	public ProductResponse findByCode(String code) {
 		return productRepository.findByCode(code)
-				.map(product -> new ProductResponse(product.getCode(), product.getName(), product.getQuantity()))
+				.map(product -> new ProductResponse(product.getCode(), product.getName(), product.getDescription(), product.getPrice()))
 				.orElseThrow(() -> new RuntimeException("Producto no encontrado " + code));
 	}
 	
 	@Override
 	public void createProduct(ProductRequest request) {
-		Product p = new Product(request.getCode(), request.getName(), request.getQuantity());
+		Product p = new Product(request.getCode(), request.getName(), request.getDescription(), request.getPrice());
 		productRepository.save(p);
 		
 	}

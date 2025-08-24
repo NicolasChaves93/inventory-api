@@ -21,7 +21,11 @@ public class ProductEntity {
 	@Column(nullable = false)
 	private String name;
 	
-	private Integer quantity;
+	@Column(nullable = true)
+	private String description;
+	
+	@Column(nullable = false)
+	private float price;
 	
 	// Getters and Setters
 	public Long getId() {
@@ -48,13 +52,19 @@ public class ProductEntity {
 		this.name = name;
 	}
 
-	public Integer getQuantity() {
-		return quantity;
+	public String getDescription() {
+		return description;
 	}
 
-	public void setQuantity(Integer quantity) {
-		this.quantity = quantity;
+	public void setDescription(String description) {
+		this.description = description;
 	}
-	
 
+	public float getPrice() {
+		return price;
+	}
+
+	public void setPrice(float price) {
+		this.price = price;
+	}
 }
