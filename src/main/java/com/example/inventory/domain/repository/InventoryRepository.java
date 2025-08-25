@@ -4,8 +4,6 @@ import java.util.List;
 import java.util.Optional;
 
 import com.example.inventory.domain.model.Inventory;
-import com.example.inventory.infrastructure.persistence.entity.ProductEntity;
-import com.example.inventory.infrastructure.persistence.entity.StoreEntity;
 
 public interface InventoryRepository {
 	
