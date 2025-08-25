@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Repository;
 
+import com.example.inventory.application.exception.ProductNotFoundException;
 import com.example.inventory.application.mapper.ProductMapper;
 import com.example.inventory.domain.model.Product;
 import com.example.inventory.domain.repository.ProductRepository;
@@ -55,5 +56,11 @@ public class JpaProductRepository implements ProductRepository {
 				.map(ProductMapper::toDomain)
 				.toList();
 	}
+	
+	// Método adicional para obtener la entidad JPA directamente (para persistencia)
+	public ProductEntity getEntityByCode(String code) {
+        return jpaRepository.findByCode(code)
+                .orElseThrow(() -> new ProductNotFoundException(code));
+    }
 
 }

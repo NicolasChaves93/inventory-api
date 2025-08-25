@@ -1,10 +1,15 @@
 package com.example.inventory.infrastructure.persistence.entity;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
 @Entity
@@ -26,6 +31,14 @@ public class ProductEntity {
 	
 	@Column(nullable = false)
 	private float price;
+	
+	/**
+    * Relación uno-a-muchos: un producto puede estar en múltiples inventarios.
+    * mappedBy = "product" hace referencia al campo en InventoryEntity.
+    */
+	@OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<InventoryEntity> inventories = new ArrayList<>();
+	
 	
 	// Getters and Setters
 	public Long getId() {
@@ -67,4 +80,23 @@ public class ProductEntity {
 	public void setPrice(float price) {
 		this.price = price;
 	}
+	
+	public List<InventoryEntity> getInventories() {
+        return inventories;
+    }
+
+    public void setInventories(List<InventoryEntity> inventories) {
+        this.inventories = inventories;
+    }
+    
+    // ----- Métodos auxiliares -----
+    public void addInventory(InventoryEntity inventory) {
+        inventories.add(inventory);
+        inventory.setProduct(this);
+    }
+
+    public void removeInventory(InventoryEntity inventory) {
+        inventories.remove(inventory);
+        inventory.setProduct(null);
+    }
 }
