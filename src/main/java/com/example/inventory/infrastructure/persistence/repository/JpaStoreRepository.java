@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Repository;
 
+import com.example.inventory.application.exception.StoreNotFoundException;
 import com.example.inventory.application.mapper.StoreMapper;
 import com.example.inventory.domain.model.Store;
 import com.example.inventory.domain.repository.StoreRepository;
@@ -35,10 +36,11 @@ public class JpaStoreRepository implements StoreRepository {
 	
 	@Override
 	public void save(Store store) {
+	    // Buscar si ya existe la tienda en BD
 	    StoreEntity entity = jpaRepository.findByName(store.getName())
-	        .orElse(new StoreEntity());
+	            .orElseGet(() -> StoreMapper.toEntity(store));
 
-	    entity.setName(store.getName());
+	    // Actualizar valores
 	    entity.setAddress(store.getAddress());
 	    entity.setStatus(store.isStatus());
 
@@ -57,5 +59,11 @@ public class JpaStoreRepository implements StoreRepository {
 				.map(StoreMapper::toDomain)
 				.toList();
 	}
+	
+	// Método adicional para obtener la entidad JPA directamente (para persistencia)
+    public StoreEntity getEntityByName(String name) {
+        return jpaRepository.findByName(name)
+                .orElseThrow(() -> new StoreNotFoundException(name));
+    }
 
 }

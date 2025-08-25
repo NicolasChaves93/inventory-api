@@ -39,11 +39,11 @@ public class StoreServiceImpl implements StoreService {
 	
 	@Override
 	public void createStore(StoreRequest request) {
-		// Implementación del método para crear una nueva tienda
+		
 		if (storeRepository.findByName(request.getName()).isPresent()) {
 			throw new DuplicateNameException(request.getName());
 		}
-		Store store = new Store(request.getName(), request.getAddress(), false);
+		Store store = new Store(request.getName(), request.getAddress(), true);
 		storeRepository.save(store);
 	}
 	
