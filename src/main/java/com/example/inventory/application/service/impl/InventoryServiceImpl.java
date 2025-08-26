@@ -13,9 +13,12 @@ import com.example.inventory.application.exception.InventoryAlreadyExistsExcepti
 import com.example.inventory.application.exception.ProductNotFoundException;
 import com.example.inventory.application.exception.StoreNotFoundException;
 import com.example.inventory.application.port.out.EventPublisherPort;
+import com.example.inventory.config.StoreProperties;
 import com.example.inventory.application.service.InventoryService;
 import com.example.inventory.domain.event.InventoryEventFactory;
+import com.example.inventory.domain.event.InventoryEventType;
 import com.example.inventory.domain.model.Inventory;
+import com.example.inventory.domain.model.Product;
 import com.example.inventory.domain.model.Store;
 import com.example.inventory.domain.repository.InventoryRepository;
 import com.example.inventory.domain.repository.ProductRepository;
@@ -28,13 +31,15 @@ public class InventoryServiceImpl implements InventoryService {
 	private final ProductRepository productRepository;
 	private final StoreRepository storeRepository;
 	private final EventPublisherPort eventPublisher;
+	private final StoreProperties storeProperties;
 
 	public InventoryServiceImpl(InventoryRepository inventoryRepository, ProductRepository productRepository,
-			StoreRepository storeRepository, EventPublisherPort eventPublisher) {
+			StoreRepository storeRepository, EventPublisherPort eventPublisher, StoreProperties storeProperties) {
 		this.inventoryRepository = inventoryRepository;
 		this.productRepository = productRepository;
 		this.storeRepository = storeRepository;
 		this.eventPublisher = eventPublisher;
+		this.storeProperties = storeProperties;
 	}
 
 	@Override
@@ -66,37 +71,57 @@ public class InventoryServiceImpl implements InventoryService {
 	}
 
 	@Override
-	public InventoryResponse addStock(String storeName, String productCode, int amount) {
-		Inventory inventory = inventoryRepository.findByStoreNameAndProductCode(storeName, productCode)
-				.orElseThrow(() -> new EntityNotFoundException("Inventario", storeName + "-" + productCode));
+	public InventoryResponse addStock(String storeName, String productCode, int quantity) {
 
-		if (amount <= 0) {
+		if (quantity <= 0) {
 			throw new IllegalArgumentException("La cantidad a agregar debe ser mayor que cero.");
 		}
+		
+		Inventory inventory = inventoryRepository.findByStoreNameAndProductCode(storeName, productCode)
+				.orElseThrow(() -> new EntityNotFoundException("Inventario", storeName + "-" + productCode));
+		
+		inventory.addStock(quantity);
+		
+        if (storeProperties.isLocal()) {
+            inventoryRepository.save(inventory);
+        } else if (storeProperties.isCentral()) {
+            
+            eventPublisher.publishToStore(storeName, InventoryEventFactory.createEvent(inventory, InventoryEventType.STOCK_ADJUSTED, storeProperties.getRole()));
+        }
+        
+        eventPublisher.publishToStore("TIENDA_CENTRAL", InventoryEventFactory.createEvent(inventory, InventoryEventType.STOCK_ADJUSTED, storeProperties.getRole()));
 
-		var event = InventoryEventFactory.stockAdjusted(storeName, productCode, amount);
-		eventPublisher.publish(event);
-
-		return new InventoryResponse(storeName, productCode, inventory.getQuantity() + amount);
+		return new InventoryResponse(storeName, productCode, inventory.getQuantity());
 	}
 
 	@Override
-	public InventoryResponse removeStock(String storeName, String productCode, int amount) {
+	public InventoryResponse removeStock(String storeName, String productCode, int quantity) {
+
+		if (quantity <= 0) {
+			throw new IllegalArgumentException("La cantidad a remover debe ser mayor que cero.");
+		}
+		
 		Inventory inventory = inventoryRepository.findByStoreNameAndProductCode(storeName, productCode)
 				.orElseThrow(() -> new EntityNotFoundException("Inventario", storeName + "-" + productCode));
 
-		if (amount <= 0) {
-			throw new IllegalArgumentException("La cantidad a remover debe ser mayor que cero.");
+		if (inventory.getQuantity() < quantity) {
+			throw new IllegalArgumentException("Stock insuficiente para remover " + quantity);
 		}
+			
+		inventory.removeStock(quantity);
+			
+		if (storeProperties.isLocal()) {
+			inventoryRepository.save(inventory);
+	        
+	     } else if (storeProperties.isCentral()) {
+	            eventPublisher.publishToStore(storeName, 
+	            		InventoryEventFactory.createEvent(inventory, InventoryEventType.STOCK_REMOVED, storeProperties.getRole()));
+	        }
+		
+		eventPublisher.publishToStore("TIENDA_CENTRAL", 
+        		InventoryEventFactory.createEvent(inventory, InventoryEventType.STOCK_REMOVED, storeProperties.getRole()));
 
-		if (inventory.getQuantity() < amount) {
-			throw new IllegalArgumentException("Stock insuficiente para remover " + amount);
-		}
-
-		var event = InventoryEventFactory.stockRemoved(storeName, productCode, amount);
-		eventPublisher.publish(event);
-
-		return new InventoryResponse(storeName, productCode, inventory.getQuantity() - amount);
+		return new InventoryResponse(storeName, productCode, inventory.getQuantity());
 	}
 
 	@Override
@@ -109,9 +134,6 @@ public class InventoryServiceImpl implements InventoryService {
 
 	@Override
 	public InventoryResponse createInventory(String storeName, String productCode, int initialStock) {
-		storeRepository.findByName(storeName).orElseThrow(() -> new StoreNotFoundException(storeName));
-
-		productRepository.findByCode(productCode).orElseThrow(() -> new ProductNotFoundException(productCode));
 
 		boolean exists = inventoryRepository.findByStoreNameAndProductCode(storeName, productCode).isPresent();
 		if (exists) {
@@ -121,9 +143,22 @@ public class InventoryServiceImpl implements InventoryService {
 		if (initialStock < 0) {
 			throw new IllegalArgumentException("El stock inicial no puede ser negativo.");
 		}
+		
+		Store store = storeRepository.findByName(storeName).orElseThrow(() -> new StoreNotFoundException(storeName));
+		Product product = productRepository.findByCode(productCode).orElseThrow(() -> new ProductNotFoundException(productCode));
 
-		var event = InventoryEventFactory.inventoryCreated(storeName, productCode, initialStock);
-		eventPublisher.publish(event);
+		Inventory inventory = new Inventory(store, product, initialStock);
+		
+		if (storeProperties.isLocal()) {
+	        inventoryRepository.save(inventory);
+	        
+	    } else if (storeProperties.isCentral()) {
+	        eventPublisher.publishToStore(storeName, 
+	        		InventoryEventFactory.createEvent(inventory, InventoryEventType.INVENTORY_CREATED, storeProperties.getRole()));
+	    }
+		
+		eventPublisher.publishToStore("TIENDA_CENTRAL", 
+        		InventoryEventFactory.createEvent(inventory, InventoryEventType.INVENTORY_CREATED, storeProperties.getRole()));
 
 		return new InventoryResponse(storeName, productCode, initialStock);
 	}
@@ -131,11 +166,19 @@ public class InventoryServiceImpl implements InventoryService {
 	@Override
 	@Transactional
 	public void deleteInventory(String storeName, String productCode) {
-		inventoryRepository.findByStoreNameAndProductCode(storeName, productCode)
+		Inventory inventory = inventoryRepository.findByStoreNameAndProductCode(storeName, productCode)
 				.orElseThrow(() -> new EntityNotFoundException("Inventario", storeName + "-" + productCode));
-
-		var event = InventoryEventFactory.inventoryDeleted(storeName, productCode);
-		eventPublisher.publish(event);
+		
+		if (storeProperties.isLocal()) {
+			inventoryRepository.delete(inventory);
+			
+		} else if (storeProperties.isCentral()) {
+			eventPublisher.publishToStore(storeName, 
+	        		InventoryEventFactory.createEvent(inventory, InventoryEventType.INVENTORY_DELETED, storeProperties.getRole()));
+		}
+		
+		eventPublisher.publishToStore("TIENDA_CENTRAL", 
+        		InventoryEventFactory.createEvent(inventory, InventoryEventType.INVENTORY_DELETED, storeProperties.getRole()));
 	}
 
 }

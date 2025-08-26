@@ -2,13 +2,21 @@ package com.example.inventory.domain.event;
 
 import java.time.Instant;
 
-import com.example.inventory.domain.model.Inventory;
+import com.example.inventory.domain.model.Store;
 
-public class InventoryEventFactory {
+public class StoreEventFactory {
 
-    private InventoryEventFactory() {}
+    private StoreEventFactory() {} // No se puede instanciar
 
-    public static DomainEvent createEvent(Inventory inventory, InventoryEventType type, String origin) {
+    /**
+     * Crea un DomainEvent a partir de una tienda y un tipo de evento.
+     *
+     * @param store La tienda afectada
+     * @param type Tipo de evento
+     * @param origin Rol que genera el evento ("Central" o "Local")
+     * @return DomainEvent listo para publicar
+     */
+    public static DomainEvent createEvent(Store store, StoreEventType type, String origin) {
         return new DomainEvent() {
 
             @Override
@@ -18,12 +26,12 @@ public class InventoryEventFactory {
 
             @Override
             public String aggregateType() {
-                return EventCategory.INVENTORY.name();
+                return EventCategory.STORE.name();
             }
 
             @Override
             public String aggregateId() {
-                return inventory.getStore().getName() + "-" + inventory.getProduct().getCode();
+                return store.getName();
             }
 
             @Override
@@ -33,14 +41,12 @@ public class InventoryEventFactory {
 
             @Override
             public String toJson() {
-                // Aquí puedes usar tu ObjectMapper para generar JSON real si quieres
                 return "{"
                         + "\"origin\":\"" + origin + "\","
                         + "\"eventType\":\"" + type.name() + "\","
                         + "\"aggregateType\":\"" + aggregateType() + "\","
-                        + "\"store\":\"" + inventory.getStore().getName() + "\","
-                        + "\"product\":\"" + inventory.getProduct().getCode() + "\","
-                        + "\"quantity\":" + inventory.getQuantity()
+                        + "\"name\":\"" + store.getName() + "\","
+                        + "\"address\":\"" + store.getAddress() + "\""
                         + "}";
             }
         };

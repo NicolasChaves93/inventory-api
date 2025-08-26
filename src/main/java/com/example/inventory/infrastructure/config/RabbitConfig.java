@@ -5,8 +5,6 @@ import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
-import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,14 +23,17 @@ public class RabbitConfig {
   private String exchangeName;
 
   @Value("${app.messaging.queue}")
-  private String queueName;
+  private String baseQueueName;
 
-  @Value("${app.messaging.routing-key}")
-  private String routingKey;
+  @Value("${store.name}")
+  private String storeName;
 
-  // Nombre de la DLQ (derivado del nombre de la cola principal)
+  private String fullQueueName() {
+    return baseQueueName + "." + storeName;
+  }
+
   private String dlqName() {
-    return queueName + ".dlq";
+    return fullQueueName() + ".dlq";
   }
 
   @Bean
@@ -40,32 +41,29 @@ public class RabbitConfig {
     return new TopicExchange(exchangeName, true, false);
   }
 
-  /**
-   * Cola principal con referencia a la DLQ
-   */
   @Bean
   public Queue inventoryQueue() {
-    return QueueBuilder.durable(queueName)
-        .withArgument("x-dead-letter-exchange", "") // exchange por defecto
-        .withArgument("x-dead-letter-routing-key", dlqName()) // redirige a la DLQ
+    return QueueBuilder.durable(fullQueueName())
+        .withArgument("x-dead-letter-exchange", "")
+        .withArgument("x-dead-letter-routing-key", dlqName())
         .build();
   }
 
-  /**
-   * Dead Letter Queue para almacenar mensajes fallidos.
-   */
   @Bean
   public Queue deadLetterQueue() {
     return QueueBuilder.durable(dlqName()).build();
   }
 
+  // ya no se usa routingKey único -> agregamos bindings específicos
   @Bean
-  public Binding inventoryBinding(Queue inventoryQueue, TopicExchange inventoryExchange) {
-    return BindingBuilder.bind(inventoryQueue).to(inventoryExchange).with(routingKey);
+  public Binding bindingAll(Queue inventoryQueue, TopicExchange inventoryExchange,
+                            @Value("${app.messaging.routing-key-all}") String routingKeyAll) {
+    return BindingBuilder.bind(inventoryQueue).to(inventoryExchange).with(routingKeyAll);
   }
 
   @Bean
-  public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
-    return new RabbitTemplate(connectionFactory);
+  public Binding bindingLocal(Queue inventoryQueue, TopicExchange inventoryExchange,
+                              @Value("${app.messaging.routing-key-local}") String routingKeyLocal) {
+    return BindingBuilder.bind(inventoryQueue).to(inventoryExchange).with(routingKeyLocal + "." + storeName);
   }
 }

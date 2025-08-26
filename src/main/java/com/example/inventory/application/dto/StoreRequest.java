@@ -1,13 +1,11 @@
 package com.example.inventory.application.dto;
 
-import jakarta.validation.constraints.NotBlank;
 
 /**
  * DTO de entrada (request) desde la API REST.
  */
 public class StoreRequest {
 	
-	@NotBlank(message = "El nombre de la tienda no puede estar vacío")
 	private String name;
 	
 	private String address;

@@ -10,18 +10,31 @@ import com.example.inventory.domain.event.DomainEvent;
 /** Publica DomainEvent serializados a JSON en el exchange configurado. */
 @Component
 public class RabbitEventPublisher implements EventPublisherPort {
-  private final RabbitTemplate template;
+    private final RabbitTemplate template;
 
-  @Value("${app.messaging.exchange}")
-  private String exchange;
+    @Value("${app.messaging.exchange}")
+    private String exchange;
 
-  @Value("${app.messaging.routing-key}")
-  private String routingKey;
+    @Value("${app.messaging.routing-key-all}")
+    private String routingKeyAll;
 
-  public RabbitEventPublisher(RabbitTemplate template) { this.template = template; }
+    @Value("${app.messaging.routing-key-local}")
+    private String routingKeyLocal;
 
-  @Override
-  public void publish(DomainEvent event) {
-    template.convertAndSend(exchange, routingKey, event.toJson());
-  }
+    public RabbitEventPublisher(RabbitTemplate template) {
+        this.template = template;
+    }
+
+    @Override
+    public void publish(DomainEvent event) {
+        publishToAll(event);
+    }
+
+    public void publishToAll(DomainEvent event) {
+        template.convertAndSend(exchange, routingKeyAll, event.toJson());
+    }
+
+    public void publishToStore(String store, DomainEvent event) {
+        template.convertAndSend(exchange, routingKeyLocal + "." + store, event.toJson());
+    }
 }

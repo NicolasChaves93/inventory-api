@@ -28,9 +28,9 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/v1/products")
 @Tag(name = "Productos", description = "Gestión de productos en inventario")
 public class ProductController {
-	
+
 	private final ProductService productService;
-	
+
 	public ProductController(ProductService productService) {
 		this.productService = productService;
 	}
@@ -61,6 +61,7 @@ public class ProductController {
 	@Operation(summary = "Eliminar un producto", description = "Elimina un producto del inventario.")
 	@DeleteMapping("/{code}")
 	public ResponseEntity<Void> delete(@PathVariable String code) {
+		
 		productService.deleteProduct(code);
 		return ResponseEntity.noContent().build();
 	}

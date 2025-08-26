@@ -62,27 +62,23 @@ public class JpaInventoryRepository implements InventoryRepository {
 	
 	@Override
 	public void save(Inventory inventory) {
-	    Optional<InventoryEntity> optionalEntity =
-	            springDataInventoryRepository.findByStore_NameAndProduct_Code(
+	    InventoryEntity entity = springDataInventoryRepository
+	            .findByStore_NameAndProduct_Code(
 	                    inventory.getStore().getName(),
 	                    inventory.getProduct().getCode()
-	            );
+	            )
+	            .orElseGet(() -> {
+	                StoreEntity storeEntity = storeRepository.findByName(inventory.getStore().getName())
+	                        .orElseThrow(() -> new EntityNotFoundException("Tienda", inventory.getStore().getName()));
 
-	    InventoryEntity entity;
+	                ProductEntity productEntity = productRepository.findByCode(inventory.getProduct().getCode())
+	                        .orElseThrow(() -> new EntityNotFoundException("Producto", inventory.getProduct().getCode()));
 
-	    if (optionalEntity.isPresent()) {
-	        entity = optionalEntity.get();
-	    } else {
-	        StoreEntity storeEntity = storeRepository.findByName(inventory.getStore().getName())
-	                .orElseThrow(() -> new EntityNotFoundException("Tienda", inventory.getStore().getName()));
-
-	        ProductEntity productEntity = productRepository.findByCode(inventory.getProduct().getCode())
-	                .orElseThrow(() -> new EntityNotFoundException("Producto", inventory.getProduct().getCode()));
-
-	        entity = new InventoryEntity();
-	        entity.setStore(storeEntity);
-	        entity.setProduct(productEntity);
-	    }
+	                InventoryEntity newEntity = new InventoryEntity();
+	                newEntity.setStore(storeEntity);
+	                newEntity.setProduct(productEntity);
+	                return newEntity;
+	            });
 
 	    entity.setQuantity(inventory.getQuantity());
 

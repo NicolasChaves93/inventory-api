@@ -9,8 +9,13 @@ import com.example.inventory.application.dto.StoreResponse;
 import com.example.inventory.application.exception.DuplicateNameException;
 import com.example.inventory.application.exception.EntityNotFoundException;
 import com.example.inventory.application.service.StoreService;
+import com.example.inventory.config.StoreProperties;
+import com.example.inventory.application.exception.StoreNameRequiredException;
 import com.example.inventory.domain.model.Store;
 import com.example.inventory.domain.repository.StoreRepository;
+import com.example.inventory.application.port.out.EventPublisherPort;
+import com.example.inventory.domain.event.StoreEventFactory;
+import com.example.inventory.domain.event.StoreEventType;
 
 import jakarta.transaction.Transactional;
 
@@ -22,12 +27,14 @@ import jakarta.transaction.Transactional;
 public class StoreServiceImpl implements StoreService {
 	
 	private final StoreRepository storeRepository;
-	
-	public StoreServiceImpl(StoreRepository storeRepository) {
+	private final StoreProperties storeProperties;
+	private final EventPublisherPort eventPublisher;
+
+	public StoreServiceImpl(StoreRepository storeRepository, StoreProperties storeProperties, EventPublisherPort eventPublisher) {
 		this.storeRepository = storeRepository;
+		this.storeProperties = storeProperties;
+		this.eventPublisher = eventPublisher;
 	}
-	
-	// Implementación de los métodos del servicio de tienda
 	
 	@Override
 	public List<StoreResponse> findAll() {
@@ -39,12 +46,22 @@ public class StoreServiceImpl implements StoreService {
 	
 	@Override
 	public void createStore(StoreRequest request) {
-		
 		if (storeRepository.findByName(request.getName()).isPresent()) {
-			throw new DuplicateNameException(request.getName());
-		}
-		Store store = new Store(request.getName(), request.getAddress(), true);
-		storeRepository.save(store);
+            throw new DuplicateNameException(request.getName());
+        }
+
+        Store store = new Store(request.getName(), request.getAddress(), true);
+        
+        if (storeProperties.isLocal()) {
+            storeRepository.save(store);
+        }
+
+        // Publicar evento hacia central
+        eventPublisher.publishToStore("TIENDA_CENTRAL",
+                StoreEventFactory.createEvent(store, StoreEventType.STORE_CREATED, storeProperties.getRole()));
+        
+        eventPublisher.publishToStore(request.getName(),
+				StoreEventFactory.createEvent(store, StoreEventType.STORE_CREATED, storeProperties.getRole()));
 	}
 	
 	@Override
@@ -57,69 +74,105 @@ public class StoreServiceImpl implements StoreService {
 	
 	@Override
 	@Transactional
-	public void updateStore(String name, StoreRequest request) {
-		// Buscar tienda existente
+    public void updateStore(String name, StoreRequest request) {
         Store existingStore = storeRepository.findByName(name)
-            .orElseThrow(() -> new EntityNotFoundException("Tienda", name));
-        
-        // Validar unicidad del nuevo nombre
-        if (!request.getName().equals(name) &&
-            storeRepository.findByName(request.getName()).isPresent()) {
-            throw new DuplicateNameException(request.getName());
+                .orElseThrow(() -> new IllegalArgumentException("Tienda no encontrada: " + name));
+
+        String newName = request.getName();
+
+        // Validaciones
+        if (storeProperties.isCentral() && (newName == null || newName.isBlank())) {
+            throw new StoreNameRequiredException();
         }
-		
-        // Actualizar solo los campos permitidos
+        if (newName != null && !newName.equals(name) &&
+            storeRepository.findByName(newName).isPresent()) {
+            throw new DuplicateNameException(newName);
+        }
+
+        // Actualizar dirección
         existingStore.setAddress(request.getAddress());
-        if (request.getName() != null) {
-            existingStore = new Store(request.getName(), request.getAddress(), existingStore.isStatus());
-            existingStore.setStatus(existingStore.isStatus());
+
+        // Actualizar nombre si aplica
+        if (newName != null && !newName.isBlank()) {
+            existingStore.setName(newName);
         }
-		
-		storeRepository.save(existingStore);
-	}
+
+        // Solo las tiendas locales hacen persistencia directamente
+        if (storeProperties.isLocal()) {
+            storeRepository.save(existingStore);
+        }
+
+        // Publicar evento hacia central
+        // Todas las operaciones de Store van hacia Central
+        eventPublisher.publishToStore(
+        		"TIENDA_CENTRAL",
+                StoreEventFactory.createEvent(existingStore, StoreEventType.STORE_UPDATED, storeProperties.getRole()));
+        
+        eventPublisher.publishToStore(request.getName(),
+				StoreEventFactory.createEvent(existingStore, StoreEventType.STORE_UPDATED, storeProperties.getRole()));
+    }
 	
 	@Override
 	@Transactional
 	public void deactivateStore(String name) {
-	    // Buscar tienda por nombre
-	    Store existingStore = storeRepository.findByName(name)
-	        .orElseThrow(() -> new EntityNotFoundException("Tienda", name));
+		Store existingStore = storeRepository.findByName(name)
+			.orElseThrow(() -> new EntityNotFoundException("Tienda", name));
 
-	    // Validar si ya está desactivada
-	    if (!existingStore.isStatus()) {
-	        return;
-	    }
-
-	    // Desactivar tienda
-	    existingStore.deactivate();
-	    storeRepository.save(existingStore);
+		if (!existingStore.isStatus()) {
+			return;
+		}
+		
+		existingStore.deactivate();
+		if (storeProperties.isLocal()) {
+			storeRepository.save(existingStore);
+		}
+		
+		// Notificar a central
+        eventPublisher.publishToStore("TIENDA_CENTRAL",
+            StoreEventFactory.createEvent(existingStore, StoreEventType.STORE_DEACTIVATED, storeProperties.getRole()));
+        
+        eventPublisher.publishToStore(name,
+				StoreEventFactory.createEvent(existingStore, StoreEventType.STORE_DEACTIVATED, storeProperties.getRole()));
 	}
 
 	
 	@Override
 	@Transactional
 	public void activateStore(String name) {
-	    // Buscar tienda por nombre
-	    Store existingStore = storeRepository.findByName(name)
-	        .orElseThrow(() -> new EntityNotFoundException("Tienda", name));
+		Store existingStore = storeRepository.findByName(name)
+			.orElseThrow(() -> new EntityNotFoundException("Tienda", name));
 
-	    // Validar si ya está activa
-	    if (existingStore.isStatus()) {
-	        return; 
-	    }
-
-	    // Activar tienda
-	    existingStore.activate();
-	    storeRepository.save(existingStore);
+		if (existingStore.isStatus()) {
+			return; 
+		}
+		
+		existingStore.activate();
+		if (storeProperties.isLocal()) {
+			storeRepository.save(existingStore);
+		}
+		
+		// Notificar a central
+        eventPublisher.publishToStore("TIENDA_CENTRAL",
+            StoreEventFactory.createEvent(existingStore, StoreEventType.STORE_ACTIVATED, storeProperties.getRole()));
+        
+        eventPublisher.publishToStore(name,
+				StoreEventFactory.createEvent(existingStore, StoreEventType.STORE_ACTIVATED, storeProperties.getRole()));
 	}
 
-	
 	@Override
 	public void deleteStore(String name) {
-		// Implementación del método para eliminar una tienda
-		Store existingStore = storeRepository.findByName(name)
-				.orElseThrow(() -> new EntityNotFoundException("Tienda", name));
+		Store store = storeRepository.findByName(name)
+                .orElseThrow(() -> new IllegalArgumentException("Tienda no encontrada: " + name));
 		
-		storeRepository.delete(existingStore);
+		if (storeProperties.isLocal()) {
+            storeRepository.delete(store);
+        }
+		
+		// Eliminar notifica a Central
+        eventPublisher.publishToStore("TIENDA_CENTRAL",
+                StoreEventFactory.createEvent(store, StoreEventType.STORE_DELETED, storeProperties.getRole()));
+        
+        eventPublisher.publishToStore(name,
+				StoreEventFactory.createEvent(store, StoreEventType.STORE_DELETED, storeProperties.getRole()));
 	}
 }
